@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "InfoResponse",
+  "type": "object",
+  "required": [
+    "exchange_ratio",
+    "first_winner_ratio",
+    "min_exchange_amount",
+    "owner_ratio",
+    "second_winner_ratio",
+    "token_decimals",
+    "token_name",
+    "token_symbol"
+  ],
+  "properties": {
+    "exchange_ratio": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0.0
+    },
+    "first_winner_ratio": {
+      "type": "integer",
+      "format": "uint8",
+      "minimum": 0.0
+    },
+    "min_exchange_amount": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0.0
+    },
+    "owner_ratio": {
+      "type": "integer",
+      "format": "uint8",
+      "minimum": 0.0
+    },
+    "second_winner_ratio": {
+      "type": "integer",
+      "format": "uint8",
+      "minimum": 0.0
+    },
+    "token_decimals": {
+      "type": "integer",
+      "format": "uint8",
+      "minimum": 0.0
+    },
+    "token_name": {
+      "type": "string"
+    },
+    "token_symbol": {
+      "type": "string"
+    }
+  }
+}

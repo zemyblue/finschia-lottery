@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ExecuteMsg",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": [
+        "invest"
+      ],
+      "properties": {
+        "invest": {
+          "type": "object",
+          "required": [
+            "amount"
+          ],
+          "properties": {
+            "amount": {
+              "type": "integer",
+              "format": "uint128",
+              "minimum": 0.0
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "close_investment"
+      ],
+      "properties": {
+        "close_investment": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}
