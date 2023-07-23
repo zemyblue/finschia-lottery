@@ -9,7 +9,7 @@ use cw_storage_plus::{Item, Map};
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ContractInfo {
     pub owner: Addr,
-    pub exchange_ratio: u,
+    pub exchange_ratio: u32,
     pub min_exchange_amount: u32,
     pub first_winner_ratio: u8,
     pub second_winner_ratio: u8,
