@@ -1,9 +1,10 @@
+use cosmwasm_std::Uint128;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
-    pub exchange_ratio: u32,    // coin: token = 1: exchange_ratio
+    pub exchange_ratio: u128,    // coin: token = 1: exchange_ratio
     pub min_exchange_amount: u32,
     pub first_winner_ratio: u8,
     pub second_winner_ratio: u8,
@@ -17,7 +18,7 @@ pub struct InstantiateMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
-    Invest { amount: u128 },
+    Invest { amount: Uint128 },
     CloseInvestment {},
     // DistributeReward {},
     // RequestExchangeToken { amount: Uint128 },
@@ -51,7 +52,7 @@ pub struct CountResponse {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InfoResponse {
-    pub exchange_ratio: u32,    // coin: token = 1: exchange_ratio
+    pub exchange_ratio: u128,    // coin: token = 1: exchange_ratio
     pub min_exchange_amount: u32,
     pub first_winner_ratio: u8,
     pub second_winner_ratio: u8,

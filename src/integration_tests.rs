@@ -73,7 +73,7 @@ mod tests {
             let (mut app, cw_template_contract) = proper_instantiate();
 
             // let msg = ExecuteMsg::Increment {};
-            let msg = ExecuteMsg::Invest { amount: 1000 };
+            let msg = ExecuteMsg::Invest { amount: Uint128::new(1000) };
             let cosmos_msg = cw_template_contract.call(msg).unwrap();
             app.execute(Addr::unchecked(USER), cosmos_msg).unwrap();
         }

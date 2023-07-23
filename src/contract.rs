@@ -1,11 +1,15 @@
 #[cfg(not(feature = "library"))]
-use cosmwasm_std::entry_point;
-use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Uint128};
+use cosmwasm_std::{entry_point, Addr};
+use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, StdResult, Uint128};
 use cw2::set_contract_version;
 
 use crate::error::ContractError;
+use crate::event::{Event, InvestedEvent, TokenTransferredEvent};
 use crate::msg::{ExecuteMsg, InstantiateMsg};
-use crate::state::{ContractInfo, CONTRACT_INFO, TokenInfo, TOKEN_INFO, Current, CURRENT};
+use crate::state::{
+    ContractInfo, Current, Investment, Investor, TokenInfo, BALANCES, CONTRACT_INFO, CURRENT,
+    INVESTMENTS, TOKEN_INFO,
+};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:finschia-lottery";
@@ -34,12 +38,20 @@ pub fn instantiate(
     };
     let current = Current {
         round: 1u32,
-        exchange_round: 1u32
+        exchange_round: 1u32,
     };
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     CONTRACT_INFO.save(deps.storage, &contract)?;
     TOKEN_INFO.save(deps.storage, &token)?;
     CURRENT.save(deps.storage, &current)?;
+
+    let new_investment = Investment {
+        round: current.round,
+        total_amount: Uint128::zero(),
+        investors: vec![],
+        // investors: Vec::<Investor>::new(),
+    };
+    INVESTMENTS.save(deps.storage, current.round.to_string(), &new_investment)?;
 
     Ok(Response::new()
         .add_attribute("method", "instantiate")
@@ -50,17 +62,79 @@ pub fn instantiate(
 pub fn execute(
     deps: DepsMut,
     _env: Env,
-    _info: MessageInfo,
+    info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::Invest { amount } => handle_invest(deps, amount),
+        ExecuteMsg::Invest { amount } => handle_invest(deps, info, amount),
         ExecuteMsg::CloseInvestment {} => handle_close_investment(deps),
     }
 }
 
-pub fn handle_invest(_deps: DepsMut, _amount: u128) -> Result<Response, ContractError> {
-    Ok(Response::default())
+fn mint_token(
+    deps: DepsMut,
+    to: &Addr,
+    amount: Uint128,
+) -> Result<TokenTransferredEvent, ContractError> {
+    BALANCES.update(
+        deps.storage,
+        to,
+        |balance: Option<Uint128>| -> StdResult<_> {
+            Ok(balance.unwrap_or_default().checked_add(amount)?)
+        },
+    )?;
+    TOKEN_INFO.update(deps.storage, |mut info| -> StdResult<_> {
+        info.total_supply = info.total_supply.checked_add(amount)?;
+        Ok(info)
+    })?;
+
+    Ok(TokenTransferredEvent {
+        from: "".to_string(),
+        to: to.to_string(),
+        amount,
+    })
+}
+
+pub fn handle_invest(
+    deps: DepsMut,
+    info: MessageInfo,
+    amount: Uint128,
+) -> Result<Response, ContractError> {
+    // 현재 round에 투자자를 추가하고, 전체 투자 금액을 증가시킨다.
+    let round = CURRENT.load(deps.storage)?.round;
+
+    // append investor
+    let mut investment = INVESTMENTS
+        .may_load(deps.storage, round.to_string())?
+        .ok_or(ContractError::InvalidRound { round })?;
+    investment
+        .total_amount
+        .checked_add(amount)
+        .map_err(|e| ContractError::CustomError { val: e.to_string() })?;
+    let new_investor = Investor {
+        addr: info.sender.clone(),
+        amount,
+    };
+    investment.investors.push(new_investor.into());
+    INVESTMENTS.save(deps.storage, round.to_string(), &investment)?;
+
+    // transfer token
+    let exchange_ratio = CONTRACT_INFO.load(deps.storage)?.exchange_ratio;
+    let exchange_amount = amount
+        .checked_mul(Uint128::new(exchange_ratio))
+        .map_err(|e| ContractError::CustomError { val: e.to_string() })?;
+    let event = mint_token(deps, &info.sender, exchange_amount)?;
+    let invested_event = InvestedEvent {
+        round,
+        who: &info.sender.as_ref(),
+        amount,
+    };
+
+    let mut rsp = Response::default();
+    event.add_attributes(&mut rsp);
+    invested_event.add_attributes(&mut rsp);
+
+    Ok(rsp)
 }
 
 pub fn handle_close_investment(_deps: DepsMut) -> Result<Response, ContractError> {
@@ -71,24 +145,24 @@ pub fn handle_close_investment(_deps: DepsMut) -> Result<Response, ContractError
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cosmwasm_std::testing::{mock_dependencies_with_balance, mock_env, mock_info};
-    use cosmwasm_std::{coins, from_binary};
     use crate::msg::{InfoResponse, QueryMsg};
     use crate::queries::query;
+    use cosmwasm_std::testing::{mock_dependencies_with_balance, mock_env, mock_info};
+    use cosmwasm_std::{coins, from_binary};
 
     #[test]
     fn proper_initialization() {
         let mut deps = mock_dependencies_with_balance(&coins(2, "token"));
 
-        let msg = InstantiateMsg { 
-            exchange_ratio: 10, 
-            min_exchange_amount: 200000000u32, 
-            first_winner_ratio: 60u8, 
-            second_winner_ratio: 20u8, 
-            owner_ratio: 2u8, 
-            token_name: "lottery".to_string(), 
-            token_symbol: "LTT".to_string(), 
-            token_decimals: 6u8, 
+        let msg = InstantiateMsg {
+            exchange_ratio: 10,
+            min_exchange_amount: 200000000u32,
+            first_winner_ratio: 60u8,
+            second_winner_ratio: 20u8,
+            owner_ratio: 2u8,
+            token_name: "lottery".to_string(),
+            token_symbol: "LTT".to_string(),
+            token_decimals: 6u8,
         };
         let info = mock_info("creator", &coins(1000, "earth"));
 

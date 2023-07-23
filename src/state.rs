@@ -9,7 +9,7 @@ use cw_storage_plus::{Item, Map};
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ContractInfo {
     pub owner: Addr,
-    pub exchange_ratio: u32,
+    pub exchange_ratio: u,
     pub min_exchange_amount: u32,
     pub first_winner_ratio: u8,
     pub second_winner_ratio: u8,
@@ -57,5 +57,5 @@ pub const CONTRACT_INFO: Item<ContractInfo> = Item::new("contract_info");
 pub const TOKEN_INFO: Item<TokenInfo> = Item::new("token_info");
 pub const STAKING: Item<Uint128> = Item::new("staking_amount");
 pub const BALANCES: Map<&Addr, Uint128> = Map::new("balance");
-pub const INVESTMENTS: Map<Uint128, Investment> = Map::new("investments");
-pub const EXCHANGES: Map<Uint128, Exchange> = Map::new("exchanges");
+pub const INVESTMENTS: Map<String, Investment> = Map::new("investments");
+pub const EXCHANGES: Map<String, Exchange> = Map::new("exchanges");
