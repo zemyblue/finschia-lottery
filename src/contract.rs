@@ -7,8 +7,8 @@ use crate::error::ContractError;
 use crate::event::{Event, InvestedEvent, TokenTransferredEvent};
 use crate::msg::{ExecuteMsg, InstantiateMsg};
 use crate::state::{
-    ContractInfo, Current, Investment, Investor, TokenInfo, BALANCES, CONTRACT_INFO, CURRENT,
-    INVESTMENTS, TOKEN_INFO,
+    ContractInfo, Current, Investment, TokenInfo, BALANCES, CONTRACT_INFO, CURRENT, INVESTMENTS, INVESTORS,
+    TOKEN_INFO,
 };
 
 // version info for migration info
@@ -48,8 +48,9 @@ pub fn instantiate(
     let new_investment = Investment {
         round: current.round,
         total_amount: Uint128::zero(),
-        investors: vec![],
-        // investors: Vec::<Investor>::new(),
+        in_progress: true,
+        first_winner: None,
+        second_winner: None,
     };
     INVESTMENTS.save(deps.storage, current.round.to_string(), &new_investment)?;
 
@@ -107,16 +108,17 @@ pub fn handle_invest(
     let mut investment = INVESTMENTS
         .may_load(deps.storage, round.to_string())?
         .ok_or(ContractError::InvalidRound { round })?;
-    investment
-        .total_amount
-        .checked_add(amount)
-        .map_err(|e| ContractError::CustomError { val: e.to_string() })?;
-    let new_investor = Investor {
-        addr: info.sender.clone(),
-        amount,
-    };
-    investment.investors.push(new_investor.into());
+    // investment
+    //     .total_amount
+    //     .checked_add(amount)
+    //     .map_err(|e| ContractError::CustomError { val: e.to_string() })?;
+    investment.total_amount = investment.total_amount + amount;
+    // let new_investor = Investor {
+    //     addr: info.sender.clone(),
+    //     amount,
+    // };
     INVESTMENTS.save(deps.storage, round.to_string(), &investment)?;
+    INVESTORS.save(deps.storage, (round.to_string(), &info.sender), &amount)?;
 
     // transfer token
     let exchange_ratio = CONTRACT_INFO.load(deps.storage)?.exchange_ratio;
@@ -141,12 +143,13 @@ pub fn handle_close_investment(_deps: DepsMut) -> Result<Response, ContractError
     Ok(Response::default())
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::msg::{InfoResponse, QueryMsg};
-    use crate::queries::query;
+    // use crate::queries::{query, token_total_supply};
+    use crate::queries::*;
+    use crate::state::Investor;
     use cosmwasm_std::testing::{mock_dependencies_with_balance, mock_env, mock_info};
     use cosmwasm_std::{coins, from_binary};
 
@@ -174,6 +177,41 @@ mod tests {
         let res = query(deps.as_ref(), mock_env(), QueryMsg::Info {}).unwrap();
         let value: InfoResponse = from_binary(&res).unwrap();
         assert_eq!(10, value.exchange_ratio);
+    }
+
+    #[test]
+    fn invest() {
+        let mut deps = mock_dependencies_with_balance(&coins(2, "token"));
+
+        let msg = InstantiateMsg {
+            exchange_ratio: 10,
+            min_exchange_amount: 200000000u32,
+            first_winner_ratio: 60u8,
+            second_winner_ratio: 20u8,
+            owner_ratio: 2u8,
+            token_name: "lottery".to_string(),
+            token_symbol: "LTT".to_string(),
+            token_decimals: 6u8,
+        };
+        let info = mock_info("creator", &coins(1000, "earth"));
+
+        // we can just call .unwrap() to assert this was a success
+        let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+        assert_eq!(0, res.messages.len());
+
+        // invest
+        let auth_info = mock_info("creator", &coins(2, "token"));
+        let msg = ExecuteMsg::Invest {
+            amount: Uint128::new(1000),
+        };
+        let _res = execute(deps.as_mut(), mock_env(), auth_info, msg).unwrap();
+
+        let total_supply = query_token_total_supply(deps.as_ref()).unwrap();
+        assert_eq!(Uint128::new(10000), total_supply.supply);
+        assert_eq!(1u32, query_current_round(deps.as_ref()).unwrap().round);
+        let investors = query_current_investors(deps.as_ref(), None, None).unwrap();
+        assert_eq!(1u32, investors.round);
+        assert_eq!(vec![Investor{addr: "creator".to_string(), amount: Uint128::new(1000)}], investors.investors);
     }
 
     // #[test]

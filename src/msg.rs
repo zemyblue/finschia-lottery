@@ -32,11 +32,11 @@ pub enum ExecuteMsg {
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     Info {},
-    // CurrentRound {},
-    // CurrentInvestors { start_after: Option<String>, limit: Option<u32> },
-    // Investors { round: Uint128, start_after: Option<String>, limit: Option<u32> },
-    // InvestResult { round: Uint128, },
-    // TotalTokenSupply {},
+    CurrentRound {},
+    CurrentInvestors { start_after: Option<String>, limit: Option<u32> },
+    Investors { round: u32, start_after: Option<String>, limit: Option<u32> },
+    InvestResult { round: u32, },
+    TotalTokenSupply {},
     // TokenBalance { who: String },
     // CurrentExchangeRound {},
     // CurrentExchangeRequesters { start_after: Option<String>, limit: Option<u32> },

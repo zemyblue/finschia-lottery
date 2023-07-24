@@ -15,7 +15,7 @@
   "properties": {
     "exchange_ratio": {
       "type": "integer",
-      "format": "uint32",
+      "format": "uint128",
       "minimum": 0.0
     },
     "first_winner_ratio": {

@@ -27,7 +27,14 @@ pub struct TokenInfo {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Investor {
-    pub addr: Addr,
+    pub addr: String,
+    pub amount: Uint128,
+}
+
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct Winner {
+    pub addr: String,
     pub amount: Uint128,
 }
 
@@ -36,14 +43,16 @@ pub struct Investor {
 pub struct Investment {
     pub round: u32,
     pub total_amount: Uint128,
-    pub investors: Vec<Investor>,
+    pub in_progress: bool,
+    pub first_winner: Option<Winner>,
+    pub second_winner: Option<Winner>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Exchange {
     pub round: u32,
     pub total_amount: Uint128,
-    pub requesters: Vec<Addr>,
+    // pub requesters: Vec<Addr>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -57,5 +66,8 @@ pub const CONTRACT_INFO: Item<ContractInfo> = Item::new("contract_info");
 pub const TOKEN_INFO: Item<TokenInfo> = Item::new("token_info");
 pub const STAKING: Item<Uint128> = Item::new("staking_amount");
 pub const BALANCES: Map<&Addr, Uint128> = Map::new("balance");
-pub const INVESTMENTS: Map<String, Investment> = Map::new("investments");
+
+pub const INVESTMENTS: Map<String, Investment> = Map::new("investments");   // <round, Investment>
+pub const INVESTORS: Map<(String, &Addr), Uint128> = Map::new("investors");
 pub const EXCHANGES: Map<String, Exchange> = Map::new("exchanges");
+pub const EXCHANGERS: Map<(String, &Addr), Uint128> = Map::new("exchangers");
