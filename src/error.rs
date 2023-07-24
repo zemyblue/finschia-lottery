@@ -16,4 +16,22 @@ pub enum ContractError {
 
     #[error("Invalid round: {round:?}")]
     InvalidRound { round: u32 },
+
+    #[error("Invalid params")]
+    InvalidParams {},
+
+    #[error("Must send reserve token '{0}'")]
+    MissingDenom(String),
+    
+    #[error("Received unsupported denom '{0}'")]
+    ExtraDenom(String),
+
+    #[error("Sent more than one denomination")]
+    MultipleDenoms {},
+
+    #[error("No funds sent")]
+    NoFunds {},
+
+    #[error("This message does no accept funds")]
+    NonPayable {},
 }

@@ -39,6 +39,7 @@ mod tests {
         let fs_lottery_id = app.store_code(contract_template());
 
         let msg = InstantiateMsg { 
+            use_denom: "cony".to_string(),
             exchange_ratio: 10, 
             min_exchange_amount: 200000000u32, 
             first_winner_ratio: 60u8, 
@@ -73,7 +74,7 @@ mod tests {
             let (mut app, cw_template_contract) = proper_instantiate();
 
             // let msg = ExecuteMsg::Increment {};
-            let msg = ExecuteMsg::Invest { amount: Uint128::new(1000) };
+            let msg = ExecuteMsg::Invest {};
             let cosmos_msg = cw_template_contract.call(msg).unwrap();
             app.execute(Addr::unchecked(USER), cosmos_msg).unwrap();
         }
