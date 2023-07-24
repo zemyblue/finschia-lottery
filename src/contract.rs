@@ -1,14 +1,14 @@
 #[cfg(not(feature = "library"))]
-use cosmwasm_std::{entry_point, Addr};
-use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, StdResult, Uint128};
+use cosmwasm_std::{entry_point, Addr, new_uuid};
+use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, StdResult, Uint128, Order};
 use cw2::set_contract_version;
 
 use crate::error::ContractError;
 use crate::event::{Event, InvestedEvent, TokenTransferredEvent};
 use crate::msg::{ExecuteMsg, InstantiateMsg};
 use crate::state::{
-    ContractInfo, Current, Investment, TokenInfo, BALANCES, CONTRACT_INFO, CURRENT, INVESTMENTS, INVESTORS,
-    TOKEN_INFO,
+    ContractInfo, Current, Investment, TokenInfo, BALANCES, CONTRACT_INFO, CURRENT, INVESTMENTS,
+    INVESTORS, TOKEN_INFO, Investor,
 };
 
 // version info for migration info
@@ -62,13 +62,13 @@ pub fn instantiate(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::Invest { amount } => handle_invest(deps, info, amount),
-        ExecuteMsg::CloseInvestment {} => handle_close_investment(deps),
+        ExecuteMsg::CloseInvestment {} => handle_close_investment(deps, env, info),
     }
 }
 
@@ -101,7 +101,6 @@ pub fn handle_invest(
     info: MessageInfo,
     amount: Uint128,
 ) -> Result<Response, ContractError> {
-    // 현재 round에 투자자를 추가하고, 전체 투자 금액을 증가시킨다.
     let round = CURRENT.load(deps.storage)?.round;
 
     // append investor
@@ -131,7 +130,36 @@ pub fn handle_invest(
     Ok(rsp)
 }
 
-pub fn handle_close_investment(_deps: DepsMut) -> Result<Response, ContractError> {
+pub fn handle_close_investment(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
+    // check if owner
+    let contract = CONTRACT_INFO.load(deps.storage)?;
+    if contract.owner != info.sender {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    // close investment and add new investment
+    let round = CURRENT.load(deps.storage)?.round;
+    let mut investment = INVESTMENTS.load(deps.storage, round.to_string())?;
+    investment.in_progress = false;
+
+    // drawing winner
+    let investors: Vec<Investor> = INVESTORS
+    .prefix(round.to_string())
+    .range(deps.storage, None, None, Order::Ascending)
+    .map(|item| {
+        item.map(|(addr, amount)| Investor {
+            addr: addr.to_string(),
+            amount,
+        })
+    })
+    .collect()?;
+
+    let uuid = new_uuid(&env, deps.storage, deps.api);
+
+    // distribute invest amount
+    // add InvestResult
+    // staking
+
     Ok(Response::default())
 }
 
@@ -139,7 +167,6 @@ pub fn handle_close_investment(_deps: DepsMut) -> Result<Response, ContractError
 mod tests {
     use super::*;
     use crate::msg::{InfoResponse, QueryMsg};
-    // use crate::queries::{query, token_total_supply};
     use crate::queries::*;
     use crate::state::Investor;
     use cosmwasm_std::testing::{mock_dependencies_with_balance, mock_env, mock_info};
@@ -203,10 +230,16 @@ mod tests {
         assert_eq!(1u32, query_current_round(deps.as_ref()).unwrap().round);
         let investors = query_current_investors(deps.as_ref(), None, None).unwrap();
         assert_eq!(1u32, investors.round);
-        assert_eq!(vec![Investor{addr: "creator".to_string(), amount: Uint128::new(1000)}], investors.investors);
+        assert_eq!(
+            vec![Investor {
+                addr: "creator".to_string(),
+                amount: Uint128::new(1000)
+            }],
+            investors.investors
+        );
         let res = query_invest_result(deps.as_ref(), 1u32);
         match res.unwrap_err() {
-            StdError::GenericErr { .. } => {},
+            StdError::GenericErr { .. } => {}
             e => panic!("unexpected error {:?}", e),
         }
         let who = Addr::unchecked("creator".to_string());
