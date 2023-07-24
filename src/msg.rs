@@ -1,4 +1,4 @@
-use cosmwasm_std::Uint128;
+use cosmwasm_std::{Uint128, Addr};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -37,7 +37,7 @@ pub enum QueryMsg {
     Investors { round: u32, start_after: Option<String>, limit: Option<u32> },
     InvestResult { round: u32, },
     TotalTokenSupply {},
-    // TokenBalance { who: String },
+    TokenBalance { who: Addr },
     // CurrentExchangeRound {},
     // CurrentExchangeRequesters { start_after: Option<String>, limit: Option<u32> },
     // ExchangeResult { round: Uint128 },

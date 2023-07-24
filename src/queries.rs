@@ -1,7 +1,9 @@
 use crate::msg::{InfoResponse, QueryMsg};
-use crate::state::{Investor, Winner, CONTRACT_INFO, CURRENT, INVESTMENTS, INVESTORS, TOKEN_INFO};
+use crate::state::{
+    Investor, Winner, BALANCES, CONTRACT_INFO, CURRENT, INVESTMENTS, INVESTORS, TOKEN_INFO,
+};
 use cosmwasm_std::{
-    entry_point, to_binary, Binary, Deps, Env, Order, StdError, StdResult, Uint128,
+    entry_point, to_binary, Addr, Binary, Deps, Env, Order, StdError, StdResult, Uint128,
 };
 use cw_storage_plus::Bound;
 use schemars::JsonSchema;
@@ -25,6 +27,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         } => to_binary(&query_investors(deps, round, start_after, limit)?),
         QueryMsg::InvestResult { round } => to_binary(&query_invest_result(deps, round)?),
         QueryMsg::TotalTokenSupply {} => to_binary(&query_token_total_supply(deps)?),
+        QueryMsg::TokenBalance { who } => to_binary(&query_token_balance(deps, who)?),
     }
 }
 
@@ -70,7 +73,12 @@ pub fn query_investors(
         .prefix(round.to_string())
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
-        .map(|item| item.map(|(addr, amount)| Investor { addr: addr.to_string(), amount }))
+        .map(|item| {
+            item.map(|(addr, amount)| Investor {
+                addr: addr.to_string(),
+                amount,
+            })
+        })
         .collect::<StdResult<_>>()?;
 
     Ok(InvestorsResponse { round, investors })
@@ -80,7 +88,7 @@ pub fn query_invest_result(deps: Deps, round: u32) -> StdResult<InvestResultResp
     let investment = INVESTMENTS
         .may_load(deps.storage, round.to_string())?
         .unwrap();
-    if !investment.in_progress {
+    if investment.in_progress {
         return Err(StdError::generic_err("in progress"));
     }
     Ok(InvestResultResponse {
@@ -93,6 +101,11 @@ pub fn query_invest_result(deps: Deps, round: u32) -> StdResult<InvestResultResp
 pub fn query_token_total_supply(deps: Deps) -> StdResult<TotalSupplyResponse> {
     let supply = TOKEN_INFO.load(deps.storage)?.total_supply;
     Ok(TotalSupplyResponse { supply: supply })
+}
+
+pub fn query_token_balance(deps: Deps, who: Addr) -> StdResult<TokenBalanceResponse> {
+    let balance = BALANCES.may_load(deps.storage, &who)?.unwrap_or_default();
+    Ok(TokenBalanceResponse { balance })
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
@@ -116,4 +129,9 @@ pub struct InvestResultResponse {
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 pub struct TotalSupplyResponse {
     pub supply: Uint128,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct TokenBalanceResponse {
+    pub balance: Uint128,
 }

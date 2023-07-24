@@ -108,15 +108,7 @@ pub fn handle_invest(
     let mut investment = INVESTMENTS
         .may_load(deps.storage, round.to_string())?
         .ok_or(ContractError::InvalidRound { round })?;
-    // investment
-    //     .total_amount
-    //     .checked_add(amount)
-    //     .map_err(|e| ContractError::CustomError { val: e.to_string() })?;
     investment.total_amount = investment.total_amount + amount;
-    // let new_investor = Investor {
-    //     addr: info.sender.clone(),
-    //     amount,
-    // };
     INVESTMENTS.save(deps.storage, round.to_string(), &investment)?;
     INVESTORS.save(deps.storage, (round.to_string(), &info.sender), &amount)?;
 
@@ -151,7 +143,7 @@ mod tests {
     use crate::queries::*;
     use crate::state::Investor;
     use cosmwasm_std::testing::{mock_dependencies_with_balance, mock_env, mock_info};
-    use cosmwasm_std::{coins, from_binary};
+    use cosmwasm_std::{coins, from_binary, StdError};
 
     #[test]
     fn proper_initialization() {
@@ -212,6 +204,14 @@ mod tests {
         let investors = query_current_investors(deps.as_ref(), None, None).unwrap();
         assert_eq!(1u32, investors.round);
         assert_eq!(vec![Investor{addr: "creator".to_string(), amount: Uint128::new(1000)}], investors.investors);
+        let res = query_invest_result(deps.as_ref(), 1u32);
+        match res.unwrap_err() {
+            StdError::GenericErr { .. } => {},
+            e => panic!("unexpected error {:?}", e),
+        }
+        let who = Addr::unchecked("creator".to_string());
+        let res = query_token_balance(deps.as_ref(), who).unwrap();
+        assert_eq!(Uint128::new(10000), res.balance);
     }
 
     // #[test]
