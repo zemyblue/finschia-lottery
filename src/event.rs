@@ -23,16 +23,20 @@ impl<'a> Event for InvestedEvent<'a> {
 
 /// Token Transfer actions
 pub struct TokenTransferredEvent<'a> {
-    pub from: Option<&'a str>,
-    pub to: Option<&'a str>,
+    // pub from: Option<&'a str>,
+    // pub to: Option<&'a str>,
+    pub from: &'a str,
+    pub to: &'a str,
     pub amount: Uint128,
 }
 
 impl<'a> Event for TokenTransferredEvent<'a> {
     fn add_attributes(&self, rsp: &mut Response) {
         rsp.attributes.push(attr("action", "TokenTransferred"));
-        rsp.attributes.push(attr("from", self.from.unwrap_or("").to_string()));
-        rsp.attributes.push(attr("to", self.to.unwrap_or("").to_string()));
+        rsp.attributes.push(attr("from", self.from.to_string()));
+        rsp.attributes.push(attr("to", self.to.to_string()));
+        // rsp.attributes.push(attr("from", self.from.unwrap_or("").to_string()));
+        // rsp.attributes.push(attr("to", self.to.unwrap_or("").to_string()));
         rsp.attributes.push(attr("amount", self.amount.to_string()));
     }
 }
