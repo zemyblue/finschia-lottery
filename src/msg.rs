@@ -1,4 +1,4 @@
-use cosmwasm_std::{Addr};
+use cosmwasm_std::{Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -26,7 +26,7 @@ pub enum ExecuteMsg {
     // CacelExchangeToken { amount: Uint128 },
     // StartExchange {},
     // EndExchange { round: Uint128 },
-    // TransferToken { to: String, amount: Uint128 },
+    TransferToken { to: String, amount: Uint128 },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -38,7 +38,7 @@ pub enum QueryMsg {
     Investors { round: u32, start_after: Option<String>, limit: Option<u32> },
     InvestResult { round: u32, },
     TotalTokenSupply {},
-    TokenBalance { who: Addr },
+    TokenBalance { who: String },
     // CurrentExchangeRound {},
     // CurrentExchangeRequesters { start_after: Option<String>, limit: Option<u32> },
     // ExchangeResult { round: Uint128 },

@@ -77,14 +77,16 @@ pub fn execute(
     match msg {
         ExecuteMsg::Invest {} => handle_invest(deps, &info),
         ExecuteMsg::CloseInvestment {} => handle_close_investment(deps, env, info),
+        ExecuteMsg::TransferToken { to, amount } => handl_transfer_token(deps, info, to, amount),
     }
 }
 
 fn mint_token(
     deps: DepsMut,
+    rsp: &mut Response,
     to: &Addr,
     amount: Uint128,
-) -> Result<TokenTransferredEvent, ContractError> {
+) -> Result<(), ContractError> {
     BALANCES.update(
         deps.storage,
         to,
@@ -97,11 +99,14 @@ fn mint_token(
         Ok(info)
     })?;
 
-    Ok(TokenTransferredEvent {
-        from: "".to_string(),
-        to: to.to_string(),
+    TokenTransferredEvent {
+        from: None,
+        to: Some(to.as_str()),
         amount,
-    })
+    }
+    .add_attributes(rsp);
+
+    Ok(())
 }
 
 pub fn one_coin(info: &MessageInfo) -> Result<Coin, ContractError> {
@@ -142,21 +147,22 @@ pub fn handle_invest(deps: DepsMut, info: &MessageInfo) -> Result<Response, Cont
     INVESTMENTS.save(deps.storage, round.to_string(), &investment)?;
     INVESTORS.save(deps.storage, (round.to_string(), &info.sender), &amount)?;
 
-    // transfer token
+    // calculate token to mint
     let exchange_ratio = CONTRACT_INFO.load(deps.storage)?.exchange_ratio;
     let exchange_amount = amount
         .checked_mul(Uint128::new(exchange_ratio))
         .map_err(|e| ContractError::CustomError { val: e.to_string() })?;
-    let event = mint_token(deps, &info.sender, exchange_amount)?;
-    let invested_event = InvestedEvent {
+
+    let mut rsp = Response::default();
+    // mint token to sender
+    mint_token(deps, &mut rsp, &info.sender, exchange_amount)?;
+
+    InvestedEvent {
         round,
         who: &info.sender.as_ref(),
         amount,
-    };
-
-    let mut rsp = Response::default();
-    event.add_attributes(&mut rsp);
-    invested_event.add_attributes(&mut rsp);
+    }
+    .add_attributes(&mut rsp);
 
     Ok(rsp)
 }
@@ -263,6 +269,37 @@ pub fn handle_close_investment(
     Ok(res)
 }
 
+pub fn handl_transfer_token(
+    deps: DepsMut,
+    info: MessageInfo,
+    to: String,
+    amount: Uint128,
+) -> Result<Response, ContractError> {
+    if amount == Uint128::zero() {
+        return Err(ContractError::InvalidZeroAmount {});
+    }
+
+    let to_addr = deps.api.addr_validate(&to)?;
+
+    BALANCES.update(deps.storage, &info.sender, |balance| -> StdResult<_> {
+        Ok(balance.unwrap_or_default().checked_sub(amount)?)
+    })?;
+    BALANCES.update(deps.storage, &to_addr, |balance| -> StdResult<_> {
+        Ok(balance.unwrap_or_default().checked_add(amount)?)
+    })?;
+
+    let mut rsp = Response::new();
+
+    TokenTransferredEvent {
+        from: Some(info.sender.as_ref()),
+        to: Some(to.as_ref()),
+        amount,
+    }
+    .add_attributes(&mut rsp);
+
+    Ok(rsp)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -299,7 +336,7 @@ mod tests {
         assert_eq!(10, value.exchange_ratio);
     }
 
-    fn do_instantiate(deps: DepsMut) {
+    fn do_instantiate(deps: DepsMut, info: MessageInfo) {
         let msg = InstantiateMsg {
             use_denom: "cony".to_string(),
             exchange_ratio: 10,
@@ -311,7 +348,6 @@ mod tests {
             token_symbol: "LTT".to_string(),
             token_decimals: 6u8,
         };
-        let info = mock_info("creator", &coins(1000, "cony"));
 
         // we can just call .unwrap() to assert this was a success
         let res = instantiate(deps, mock_env(), info, msg).unwrap();
@@ -327,8 +363,9 @@ mod tests {
     #[test]
     fn invest() {
         let mut deps = mock_dependencies_with_balance(&coins(2, "token"));
+        let auth_info = mock_info("creator", &coins(1000, "cony"));
 
-        do_instantiate(deps.as_mut());
+        do_instantiate(deps.as_mut(), auth_info.clone());
 
         // invest
         do_invest(deps.as_mut(), "creator", 1000);
@@ -352,16 +389,16 @@ mod tests {
             StdError::GenericErr { .. } => {}
             e => panic!("unexpected error {:?}", e),
         }
-        let who = Addr::unchecked("creator".to_string());
-        let res = query_token_balance(deps.as_ref(), who).unwrap();
+        let res = query_token_balance(deps.as_ref(), "creator".to_string()).unwrap();
         assert_eq!(Uint128::new(10000), res.balance);
     }
 
     #[test]
     fn close_investment() {
         let mut deps = mock_dependencies_with_balance(&coins(2, "token"));
+        let auth_info = mock_info("creator", &coins(1000, "cony"));
 
-        do_instantiate(deps.as_mut());
+        do_instantiate(deps.as_mut(), auth_info.clone());
 
         // invest
         do_invest(deps.as_mut(), "alpha", 1000);
@@ -373,5 +410,45 @@ mod tests {
         assert_eq!(Uint128::new(40000), total_supply.supply);
         let investors = query_current_investors(deps.as_ref(), None, None).unwrap();
         assert_eq!(4usize, investors.investors.len());
+
+        let msg = ExecuteMsg::CloseInvestment {};
+        execute(deps.as_mut(), mock_env(), auth_info.clone(), msg).unwrap();
+
+        assert_eq!(2u32, query_current_round(deps.as_ref()).unwrap().round);
+
+        let res = query_invest_result(deps.as_ref(), 1).unwrap();
+        assert_eq!(1u32, res.round);
+        assert_eq!(Uint128::new(4000 * 60 / 100), res.first_winner.amount);
+        assert_eq!(Uint128::new(4000 * 20 / 100), res.second_winner.amount);
+        let res = query_investors(deps.as_ref(), 1, None, None).unwrap();
+        assert_eq!(4, res.investors.len());
+    }
+
+    #[test]
+    fn transfer_token() {
+        let mut deps = mock_dependencies_with_balance(&coins(2, "token"));
+        let auth_info = mock_info("creator", &coins(1000, "cony"));
+
+        do_instantiate(deps.as_mut(), auth_info.clone());
+
+        let spender1 = String::from("alpha");
+        let spender2 = String::from("beta");
+
+        // invest
+        do_invest(deps.as_mut(), spender1.as_str(), 1000);
+        do_invest(deps.as_mut(), spender2.as_str(), 1000);
+
+        assert_eq!(Uint128::new(20000), query_token_total_supply(deps.as_ref()).unwrap().supply);
+        assert_eq!(Uint128::new(10000), query_token_balance(deps.as_ref(), spender1.clone()).unwrap().balance);
+        assert_eq!(Uint128::new(10000), query_token_balance(deps.as_ref(), spender2.clone()).unwrap().balance);
+
+        // transfer token
+        let info = mock_info(spender1.as_str(), &[]);
+        let msg = ExecuteMsg::TransferToken { to: spender2.clone(), amount:Uint128::new(5000) };
+        execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+        assert_eq!(Uint128::new(20000), query_token_total_supply(deps.as_ref()).unwrap().supply);
+        assert_eq!(Uint128::new(5000), query_token_balance(deps.as_ref(), spender1.clone()).unwrap().balance);
+        assert_eq!(Uint128::new(15000), query_token_balance(deps.as_ref(), spender2.clone()).unwrap().balance);
     }
 }

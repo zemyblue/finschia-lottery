@@ -34,4 +34,7 @@ pub enum ContractError {
 
     #[error("This message does no accept funds")]
     NonPayable {},
+
+    #[error("Invalid zero amount")]
+    InvalidZeroAmount {},
 }

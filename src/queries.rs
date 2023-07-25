@@ -3,7 +3,7 @@ use crate::state::{
     Investor, Winner, BALANCES, CONTRACT_INFO, CURRENT, INVESTMENTS, INVESTORS, TOKEN_INFO,
 };
 use cosmwasm_std::{
-    entry_point, to_binary, Addr, Binary, Deps, Env, Order, StdError, StdResult, Uint128,
+    entry_point, to_binary, Binary, Deps, Env, Order, StdError, StdResult, Uint128,
 };
 use cw_storage_plus::Bound;
 use schemars::JsonSchema;
@@ -103,8 +103,9 @@ pub fn query_token_total_supply(deps: Deps) -> StdResult<TotalSupplyResponse> {
     Ok(TotalSupplyResponse { supply: supply })
 }
 
-pub fn query_token_balance(deps: Deps, who: Addr) -> StdResult<TokenBalanceResponse> {
-    let balance = BALANCES.may_load(deps.storage, &who)?.unwrap_or_default();
+pub fn query_token_balance(deps: Deps, who: String) -> StdResult<TokenBalanceResponse> {
+    let who_addr = deps.api.addr_validate(&who)?;
+    let balance = BALANCES.may_load(deps.storage, &who_addr)?.unwrap_or_default();
     Ok(TokenBalanceResponse { balance })
 }
 
