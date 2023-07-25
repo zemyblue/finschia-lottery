@@ -17,6 +17,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Info {} => to_binary(&query_contract_info(deps)?),
         QueryMsg::CurrentRound {} => to_binary(&query_current_round(deps)?),
+        QueryMsg::CurrentInvestment {} => to_binary(&query_current_investment(deps)?),
         QueryMsg::CurrentInvestors { start_after, limit } => {
             to_binary(&query_current_investors(deps, start_after, limit)?)
         }
@@ -49,6 +50,12 @@ fn query_contract_info(deps: Deps) -> StdResult<InfoResponse> {
 pub fn query_current_round(deps: Deps) -> StdResult<CurrentRoundResponse> {
     let round = CURRENT.load(deps.storage)?.round;
     Ok(CurrentRoundResponse { round })
+}
+
+pub fn query_current_investment(deps: Deps) -> StdResult<CurrentInvestmentResponse> {
+    let round = query_current_round(deps)?.round;
+    let investment = INVESTMENTS.load(deps.storage, round.to_string())?;
+    Ok(CurrentInvestmentResponse { round: investment.round, total_amount: investment.total_amount })
 }
 
 pub fn query_current_investors(
@@ -112,6 +119,12 @@ pub fn query_token_balance(deps: Deps, who: String) -> StdResult<TokenBalanceRes
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 pub struct CurrentRoundResponse {
     pub round: u32,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct CurrentInvestmentResponse {
+    pub round: u32,
+    pub total_amount: Uint128,
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]

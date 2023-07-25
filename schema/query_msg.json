@@ -29,6 +29,18 @@
     {
       "type": "object",
       "required": [
+        "current_investment"
+      ],
+      "properties": {
+        "current_investment": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
         "current_investors"
       ],
       "properties": {
@@ -120,6 +132,26 @@
       "properties": {
         "total_token_supply": {
           "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "token_balance"
+      ],
+      "properties": {
+        "token_balance": {
+          "type": "object",
+          "required": [
+            "who"
+          ],
+          "properties": {
+            "who": {
+              "type": "string"
+            }
+          }
         }
       },
       "additionalProperties": false

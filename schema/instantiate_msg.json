@@ -10,7 +10,8 @@
     "second_winner_ratio",
     "token_decimals",
     "token_name",
-    "token_symbol"
+    "token_symbol",
+    "use_denom"
   ],
   "properties": {
     "exchange_ratio": {
@@ -47,6 +48,9 @@
       "type": "string"
     },
     "token_symbol": {
+      "type": "string"
+    },
+    "use_denom": {
       "type": "string"
     }
   }

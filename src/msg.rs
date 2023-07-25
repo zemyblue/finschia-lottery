@@ -34,6 +34,7 @@ pub enum ExecuteMsg {
 pub enum QueryMsg {
     Info {},
     CurrentRound {},
+    CurrentInvestment {},
     CurrentInvestors { start_after: Option<String>, limit: Option<u32> },
     Investors { round: u32, start_after: Option<String>, limit: Option<u32> },
     InvestResult { round: u32, },

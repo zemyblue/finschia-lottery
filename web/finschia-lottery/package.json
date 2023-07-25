@@ -1,5 +1,5 @@
 {
-  "name": "vue-3-and-typescript",
+  "name": "finschia-lottery",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -8,6 +8,13 @@
     "lint": "vue-cli-service lint"
   },
   "dependencies": {
+    "@cosmjs/crypto": "^0.29.5",
+    "@cosmjs/proto-signing": "^0.29.5",
+    "@cosmjs/encoding": "^0.29.5",
+    "@finschia/finschia": "0.8.0",
+    "@keplr-wallet/types": "^0.12.11",
+    "bootstrap": "^5.3.0",
+    "bootstrap-vue-3": "^0.5.1",
     "core-js": "^3.8.3",
     "register-service-worker": "^1.7.2",
     "vue": "^3.2.13",

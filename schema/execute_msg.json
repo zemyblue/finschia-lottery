@@ -9,15 +9,7 @@
       ],
       "properties": {
         "invest": {
-          "type": "object",
-          "required": [
-            "amount"
-          ],
-          "properties": {
-            "amount": {
-              "$ref": "#/definitions/Uint128"
-            }
-          }
+          "type": "object"
         }
       },
       "additionalProperties": false
@@ -30,6 +22,30 @@
       "properties": {
         "close_investment": {
           "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "transfer_token"
+      ],
+      "properties": {
+        "transfer_token": {
+          "type": "object",
+          "required": [
+            "amount",
+            "to"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "to": {
+              "type": "string"
+            }
+          }
         }
       },
       "additionalProperties": false
