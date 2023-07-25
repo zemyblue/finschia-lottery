@@ -7,7 +7,7 @@ use cosmwasm_std::{
 use cw2::set_contract_version;
 
 use crate::error::ContractError;
-use crate::event::{ClosedInvestmentEvent, Event, InvestedEvent, TokenTransferredEvent};
+use crate::event::{ClosedInvestmentEvent, Event, InvestedEvent};
 use crate::msg::{ExecuteMsg, InstantiateMsg};
 use crate::state::{
     ContractInfo, Current, Investment, Investor, TokenInfo, Winner, BALANCES, CONTRACT_INFO,
@@ -83,7 +83,7 @@ pub fn execute(
 
 fn mint_token(
     deps: DepsMut,
-    rsp: &mut Response,
+    _rsp: &Response,
     to: &Addr,
     amount: Uint128,
 ) -> Result<(), ContractError> {
@@ -99,12 +99,12 @@ fn mint_token(
         Ok(info)
     })?;
 
-    TokenTransferredEvent {
-        from: None,
-        to: Some(to.as_str()),
-        amount,
-    }
-    .add_attributes(rsp);
+    // TokenTransferredEvent {
+    //     from: "",
+    //     to: to.as_str(),
+    //     amount,
+    // }
+    // .add_attributes(rsp);
 
     Ok(())
 }
@@ -145,7 +145,10 @@ pub fn handle_invest(deps: DepsMut, info: &MessageInfo) -> Result<Response, Cont
         .ok_or(ContractError::InvalidRound { round })?;
     investment.total_amount = investment.total_amount + amount;
     INVESTMENTS.save(deps.storage, round.to_string(), &investment)?;
-    INVESTORS.save(deps.storage, (round.to_string(), &info.sender), &amount)?;
+    // INVESTORS.save(deps.storage, (round.to_string(), &info.sender), &amount)?;
+    INVESTORS.update(deps.storage, (round.to_string(), &info.sender), |a| -> StdResult<_>{
+        Ok(a.unwrap_or_default().checked_add(amount)?)
+    })?;
 
     // calculate token to mint
     let exchange_ratio = CONTRACT_INFO.load(deps.storage)?.exchange_ratio;
@@ -158,7 +161,7 @@ pub fn handle_invest(deps: DepsMut, info: &MessageInfo) -> Result<Response, Cont
     mint_token(deps, &mut rsp, &info.sender, exchange_amount)?;
 
     InvestedEvent {
-        round,
+        round,  
         who: &info.sender.as_ref(),
         amount,
     }
@@ -288,14 +291,14 @@ pub fn handl_transfer_token(
         Ok(balance.unwrap_or_default().checked_add(amount)?)
     })?;
 
-    let mut rsp = Response::new();
+    let rsp = Response::new();
 
-    TokenTransferredEvent {
-        from: Some(info.sender.as_ref()),
-        to: Some(to.as_ref()),
-        amount,
-    }
-    .add_attributes(&mut rsp);
+    // TokenTransferredEvent {
+    //     from: info.sender.as_ref(),
+    //     to: to.as_ref(),
+    //     amount,
+    // }
+    // .add_attributes(&mut rsp);
 
     Ok(rsp)
 }
@@ -324,7 +327,7 @@ mod tests {
             token_symbol: "LTT".to_string(),
             token_decimals: 6u8,
         };
-        let info = mock_info("creator", &coins(1000, "cony"));
+        let info: MessageInfo = mock_info("creator", &coins(1000, "cony"));
 
         // we can just call .unwrap() to assert this was a success
         let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
